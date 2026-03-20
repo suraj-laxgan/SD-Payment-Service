@@ -1,0 +1,50 @@
+# version: '3.8'  # Compose file version
+
+services:
+
+  # ---------------- PAYMENT SERVICE ----------------
+  payment:
+    # build: apaymentpp-service   # Build image using Dockerfile in this folder
+    build: .   # use current folder ( Laravel project)
+    container_name: payment_service  # Custom name for container (used in CLI)
+
+    volumes:  
+      - .:/var/www
+      # Bind mount:
+      # Sync your local code with container
+      # So changes reflect instantly (no rebuild needed)
+
+    ports:
+      - "8002:8000"
+      # Map port:
+      # localhost:8002 → container:8000
+
+    networks:
+      - microservices-net  # connect to shared infra
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------- Payment Worker ----------------
+
+  payment_worker:
+    build: .
+    container_name: payment_worker
+
+    command: php artisan queue:work --tries=3 --timeout=90
+
+    volumes:
+      - .:/var/www
+
+    networks:
+      - microservices-net
+    depends_on:
+      - payment   # start after app
+
+
+networks:
+  microservices-net:
+    external: true   # use existing network
